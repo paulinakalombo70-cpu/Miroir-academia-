@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080706"><title>Administration | Miroir Academia</title>
+<style>
+:root{--g:#f4c42e;--bg:#090806;--p:#17130b}*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#fff;font-family:Arial,sans-serif}
+.wrap{max-width:900px;margin:auto;padding:22px 17px}
+header{border-bottom:1px solid #8d6b17;background:#050505}
+.brand{font: bold 25px Georgia,serif;color:var(--g);padding:18px 0;display:block}
+h1,h2{font-family:Georgia,serif;color:var(--g)}h1{font-size:34px}
+.box{background:var(--p);border:1px solid #806016;border-radius:13px;padding:20px;margin:18px 0}
+input,textarea{display:block;width:100%;margin:8px 0 15px;padding:13px;border-radius:7px;border:1px solid #755817;background:#090806;color:white;font:inherit}
+textarea{min-height:130px;resize:vertical}
+button,.btn{border:0;border-radius:8px;padding:12px 17px;background:var(--g);color:#090806;font-weight:bold;cursor:pointer}
+button.secondary{background:#292216;color:white;border:1px solid #806016}
+label{color:#e7dcc3;font-weight:bold}
+.muted{color:#cfc4aa;line-height:1.5}.hidden{display:none!important}
+.item{border-top:1px solid #594515;padding:14px 0}.item h3{color:#ffe18a;margin:0 0 6px}
+.status{padding:10px;border-radius:8px;background:#292216;color:#ffe18a;white-space:pre-wrap}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+</style></head><body>
+<header><div class="wrap"><a class="brand" href="index.html">MIROIR ACADEMIA — Administration</a></div></header>
+<main class="wrap">
+<h1>Ton espace de gestion</h1>
+<p class="muted">Connecte-toi pour rédiger, publier et gérer les annonces de Miroir Academia.</p>
+<div id="setup" class="box"><h2>Configuration nécessaire</h2>
+<p class="muted">L'espace utilise Supabase pour sécuriser les comptes et enregistrer les articles en ligne. Avant la première connexion, il faut créer le projet Supabase gratuit, ajouter l'URL et la clé publique dans <b>config.js</b>, puis exécuter le fichier <b>supabase_setup.sql</b> dans l'éditeur SQL de Supabase.</p>
+<p class="muted">Aucun mot de passe n'est préinstallé. Tu créeras ton propre compte administrateur dans Supabase Auth.</p>
+</div>
+<div id="auth" class="box"><h2>Connexion administrateur</h2>
+<label>Adresse e-mail</label><input id="email" type="email" autocomplete="username" placeholder="Ton e-mail">
+<label>Mot de passe</label><input id="password" type="password" autocomplete="current-password" placeholder="Ton mot de passe">
+<button onclick="login()">Se connecter</button>
+<p class="muted">Le compte doit d'abord être créé dans Supabase Authentication. L'inscription publique n'est pas activée depuis cette page.</p>
+<div id="authmsg" class="status">En attente de configuration Supabase.</div>
+</div>
+<div id="dashboard" class="hidden">
+<div class="top"><h2>Tableau de bord</h2><button class="secondary" onclick="logout()">Déconnexion</button></div>
+<div class="box"><h2>Publier une annonce ou un article</h2>
+<label>Titre</label><input id="title" maxlength="140" placeholder="Titre de l'article">
+<label>Texte</label><textarea id="body" placeholder="Écris ton annonce ou ton article..."></textarea>
+<label>Adresse de l'image (facultatif)</label><input id="image" type="url" placeholder="https://...">
+<label><input id="published" type="checkbox" checked style="display:inline;width:auto"> Publier immédiatement sur le site</label><br><br>
+<button onclick="publish()">Enregistrer l'article</button><div id="pubmsg" class="status" style="margin-top:12px"></div>
+</div>
+<div class="box"><h2>Publications</h2><div id="articles">Chargement...</div></div>
+</div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script>
+<script>
+let sb=null,user=null;
+function say(id,msg){document.getElementById(id).textContent=msg}
+function init(){
+ if(!window.MA_CONFIG||!MA_CONFIG.url||MA_CONFIG.url.includes("VOTRE_")){say("authmsg","Configuration non terminée : renseigne config.js avec l'URL et la clé publique de ton projet Supabase.");return}
+ sb=window.supabase.createClient(MA_CONFIG.url,MA_CONFIG.anonKey);
+ sb.auth.onAuthStateChange((_e,session)=>{user=session?.user||null;showState()});
+ sb.auth.getSession().then(({data})=>{user=data.session?.user||null;showState()});
+}
+function showState(){document.getElementById("dashboard").classList.toggle("hidden",!user);document.getElementById("auth").classList.toggle("hidden",!!user);document.getElementById("setup").classList.add("hidden");if(user)loadArticles()}
+async function login(){if(!sb)return say("authmsg","Configure d'abord Supabase.");const {error}=await sb.auth.signInWithPassword({email:document.getElementById("email").value,password:document.getElementById("password").value});say("authmsg",error?error.message:"Connexion réussie.")}
+async function logout(){await sb.auth.signOut()}
+async function publish(){
+ const title=document.getElementById("title").value.trim(),body=document.getElementById("body").value.trim();
+ if(!title||!body)return say("pubmsg","Ajoute un titre et un texte.");
+ const row={title,body,image_url:document.getElementById("image").value.trim()||null,published:document.getElementById("published").checked,author_id:user.id};
+ const {error}=await sb.from("articles").insert(row);
+ if(error)return say("pubmsg","Erreur : "+error.message);
+ document.getElementById("title").value="";document.getElementById("body").value="";document.getElementById("image").value="";
+ say("pubmsg","Article enregistré.");loadArticles();
+}
+async function loadArticles(){
+ const {data,error}=await sb.from("articles").select("id,title,published,created_at").order("created_at",{ascending:false});
+ const box=document.getElementById("articles");if(error){box.textContent=error.message;return}
+ box.innerHTML=data.length?data.map(a=>`<div class="item"><h3>${esc(a.title)}</h3><p class="muted">${a.published?"Publié":"Brouillon"} · ${new Date(a.created_at).toLocaleString("fr-FR")}</p><button class="secondary" onclick="togglePub('${a.id}',${!a.published})">${a.published?"Dépublier":"Publier"}</button> <button class="secondary" onclick="del('${a.id}')">Supprimer</button></div>`).join(""):"Aucun article pour le moment.";
+}
+async function togglePub(id,published){const {error}=await sb.from("articles").update({published}).eq("id",id);if(error)alert(error.message);loadArticles()}
+async function del(id){if(!confirm("Supprimer définitivement cet article ?"))return;const {error}=await sb.from("articles").delete().eq("id",id);if(error)alert(error.message);loadArticles()}
+function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+init();
+</script></body></html>

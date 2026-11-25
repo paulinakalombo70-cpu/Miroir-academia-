@@ -1,0 +1,14 @@
+MIROIR ACADEMIA — ESPACE ADMINISTRATEUR (version de démarrage)
+
+FICHIERS
+- index.html : site public, avec actualités chargées depuis Supabase
+- bibliotheque.html : bibliothèque créée précédemment
+- admin.html : connexion, tableau de bord, création, publication, dépublication et suppression d'articles
+- config.js : à remplir avec l'URL et la clé anon/public Supabase
+- supabase_setup.sql : tables et règles de sécurité de la base
+
+IMPORTANT : l'espace administrateur est programmé, mais il ne fonctionnera pas en ligne avant la configuration Supabase et l'hébergement des fichiers.
+Ne mets jamais la clé service_role dans config.js. Ne partage pas ton mot de passe.
+Le compte administrateur doit être créé dans Supabase Authentication, puis l'adresse e-mail doit être confirmée si la confirmation est activée.
+Pour un seul administrateur, désactive les inscriptions publiques après avoir créé le compte.
+Cette version gère les articles/annonces avec texte et URL d'image. Le téléversement direct d'images/vidéos, la boutique avec paiements et les autres rôles ne sont pas encore inclus.
